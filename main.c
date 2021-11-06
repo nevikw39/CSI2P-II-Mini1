@@ -289,6 +289,14 @@ AST *parse(Token *arr, int l, int r, GrammarState S)
 	case MUL_EXPR:
 		// TODO: Implement MUL_EXPR.
 		// hint: Take ADD_EXPR as reference.
+		if (~(nxt = findNextSection(arr, r, l, condMUL)))
+		{
+			now = new_AST(arr[nxt].kind, 0);
+			now->lhs = parse(arr, l, nxt - 1, MUL_EXPR);
+			now->rhs = parse(arr, nxt + 1, r, UNARY_EXPR);
+			return now;
+		}
+		return parse(arr, l, r, UNARY_EXPR);
 	case UNARY_EXPR:
 		// TODO: Implement UNARY_EXPR.
 		// hint: Take POSTFIX_EXPR as reference.
