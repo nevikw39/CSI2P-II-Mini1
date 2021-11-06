@@ -121,7 +121,11 @@ int main()
 		size_t len = token_list_to_arr(&content);
 		if (len == 0)
 			continue;
+		if (DEBUG)
+			token_print(content, len);
 		AST *ast_root = parser(content, len);
+		if (DEBUG)
+			AST_print(ast_root);
 		semantic_check(ast_root);
 		codegen(ast_root);
 		free(content);
