@@ -72,7 +72,9 @@ typedef struct ASTUnit
 	}
 
 // You may set DEBUG=1 to debug. Remember setting back to 0 before submit.
+#ifndef DEBUG
 #define DEBUG 0
+#endif
 // Split the input char array into token linked list.
 Token *lexer(const char *in);
 // Create a new token.
