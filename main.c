@@ -400,7 +400,18 @@ void semantic_check(AST *now)
 	// Operand of INC/DEC must be an identifier or identifier with one or more parentheses.
 	// TODO: Implement the remaining semantic_check code.
 	// hint: Follow the instruction above and ASSIGN-part code to implement.
+	if (now->kind == ASSIGN)
+	{
+		AST *tmp = now->lhs;
+		while (tmp->kind == LPAR)
+			tmp = tmp->mid;
+		if (now->kind == PREINC || now->kind == POSTINC || now->kind == PREDEC || now->kind == POSTDEC)
+			err("perand of INC/DEC must be an identifier or identifier with one or more parentheses.");
+	}
 	// hint: Semantic of each node needs to be checked recursively (from the current node to lhs/mid/rhs node).
+	semantic_check(now->lhs);
+	semantic_check(now->mid);
+	semantic_check(now->rhs);
 }
 
 void codegen(AST *root)
