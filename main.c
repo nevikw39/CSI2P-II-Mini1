@@ -119,24 +119,24 @@ void AST_print(AST *head);
 
 AST *optimizeAST(AST *);
 
-typedef struct _Symbol
+typedef struct _Symbol // the operand of an ASM
 {
 	enum SymbolType
 	{
-		CONST,
-		REG,
-		MEM,
-		NIL
+		SYMB_CONST,
+		SYMB_REG,
+		SYMB_MEM,
+		SYMB_NIL
 	} type;
 	int val;
 } Symbol;
 
 void printSymbol(Symbol);
 
-typedef enum _Op
+typedef enum _Op // the type of an ASM
 {
-	LOAD,
-	STORE,
+	OP_LOAD,
+	OP_STORE,
 	OP_ADD,
 	OP_SUB,
 	OP_MUL,
@@ -147,16 +147,17 @@ typedef enum _Op
 typedef struct _ASM
 {
 	Op op_code;
-	Symbol oprands[3];
+	Symbol d, s1, s2;
 } ASM;
 
-ASM asms[1000001], *asms_end = asms;
+ASM asms[1000001],	  // the ASM queue
+	*asms_end = asms; // the open-interval end of the ASM queue
 
-void addASM(Op, Symbol, Symbol, Symbol);
-Symbol genASM(AST *);
-void printASM(ASM);
+void addASM(Op, Symbol, Symbol, Symbol); // add an ASM to the ASM queue
+Symbol genASM(AST *);					 // generate ASMs from AST
+void printASM(ASM);						 // print the ASM queue
 
-enum RegStatus
+enum Reg // the status of the registers
 {
 	FREE,
 	OCCUPIED,
@@ -165,7 +166,8 @@ enum RegStatus
 
 int getReg();
 
-int vars[3] = {-1, -1, -1}, modified[3] = {0};
+int vars[3] = {-1, -1, -1}, // the register in which the variable stored
+	modified[3] = {0};		// whether the variable modified
 
 #pragma endregion NEVIKW39_DEF
 
@@ -191,7 +193,7 @@ int main()
 	}
 	for (int i = 0; i < 3; i++)
 		if (modified[i])
-			addASM(STORE, (Symbol){MEM, i << 2}, (Symbol){REG, vars[i]}, (Symbol){NIL});
+			addASM(OP_STORE, (Symbol){SYMB_MEM, i << 2}, (Symbol){SYMB_REG, vars[i]}, (Symbol){SYMB_NIL, 0});
 	for (ASM *ptr = asms; ptr != asms_end; ptr++)
 		printASM(*ptr);
 	return 0;
@@ -618,18 +620,18 @@ AST *optimizeAST(AST *root)
 
 void printSymbol(Symbol s)
 {
-	if (s.type == NIL)
+	if (s.type == SYMB_NIL)
 		return;
 	const static char *format[] = {"%d", "r%d", "[%d]"};
 	printf(format[s.type], s.val);
 }
 
-void addASM(Op op_code, Symbol a, Symbol b, Symbol c)
+void addASM(Op op_code, Symbol d, Symbol s1, Symbol s2)
 {
 	asms_end->op_code = op_code;
-	asms_end->oprands[0] = a;
-	asms_end->oprands[1] = b;
-	asms_end->oprands[2] = c;
+	asms_end->d = d;
+	asms_end->s1 = s1;
+	asms_end->s2 = s2;
 	++asms_end;
 }
 
@@ -637,7 +639,7 @@ int LOCK = 0;
 
 Symbol genASM(AST *root)
 {
-	static Symbol ZERO = (Symbol){CONST, 0}, ONE = (Symbol){CONST, 1}, NIL_SYMB = (Symbol){NIL};
+	const static Symbol ZERO = (Symbol){SYMB_CONST, 0}, ONE = (Symbol){SYMB_CONST, 1}, NIL_SYMB = (Symbol){SYMB_NIL, 0};
 	Symbol lhs, rhs, res;
 	if (!root)
 		return NIL_SYMB;
@@ -645,9 +647,9 @@ Symbol genASM(AST *root)
 	{
 	case ASSIGN:
 		rhs = genASM(root->rhs);
-		if (rhs.type == CONST || regs[rhs.val] == VAR)
+		if (rhs.type == SYMB_CONST || regs[rhs.val] == VAR)
 		{
-			res = (Symbol){REG, getReg()};
+			res = (Symbol){SYMB_REG, getReg()};
 			addASM(OP_ADD, res, ZERO, rhs);
 		}
 		else
@@ -655,7 +657,7 @@ Symbol genASM(AST *root)
 		LOCK = 1;
 		lhs = genASM(root->lhs);
 		LOCK = 0;
-		if (lhs.type != NIL)
+		if (lhs.type != SYMB_NIL)
 			regs[lhs.val] = FREE;
 		vars[root->lhs->val - 'x'] = res.val;
 		modified[root->lhs->val - 'x'] = 1;
@@ -668,16 +670,16 @@ Symbol genASM(AST *root)
 	case REM:
 		lhs = genASM(root->lhs);
 		rhs = genASM(root->rhs);
-		if (lhs.type == REG && regs[lhs.val] != VAR)
+		if (lhs.type == SYMB_REG && regs[lhs.val] != VAR)
 			res = lhs;
-		else if (rhs.type == REG && regs[rhs.val] != VAR)
+		else if (rhs.type == SYMB_REG && regs[rhs.val] != VAR)
 			res = rhs;
 		else
-			res = (Symbol){REG, getReg()};
+			res = (Symbol){SYMB_REG, getReg()};
 		addASM(root->kind - ADD + OP_ADD, res, lhs, rhs);
-		if (lhs.type == REG && regs[lhs.val] != VAR)
+		if (lhs.type == SYMB_REG && regs[lhs.val] != VAR)
 			regs[lhs.val] = FREE;
-		if (rhs.type == REG && regs[rhs.val] != VAR)
+		if (rhs.type == SYMB_REG && regs[rhs.val] != VAR)
 			regs[rhs.val] = FREE;
 		regs[res.val] = OCCUPIED;
 		return res;
@@ -688,7 +690,7 @@ Symbol genASM(AST *root)
 		lhs = genASM(root->mid);
 		if (root->kind == POSTINC || root->kind == POSTDEC)
 		{
-			res = (Symbol){REG, getReg()};
+			res = (Symbol){SYMB_REG, getReg()};
 			regs[res.val] = OCCUPIED;
 			addASM(OP_ADD, res, ZERO, lhs);
 		}
@@ -699,21 +701,21 @@ Symbol genASM(AST *root)
 		return res;
 	case IDENTIFIER:
 		if (~vars[root->val - 'x'])
-			return (Symbol){REG, vars[root->val - 'x']};
+			return (Symbol){SYMB_REG, vars[root->val - 'x']};
 		if (LOCK)
 			return NIL_SYMB;
-		res = (Symbol){REG, getReg()};
+		res = (Symbol){SYMB_REG, getReg()};
 		regs[res.val] = VAR;
 		vars[root->val - 'x'] = res.val;
-		addASM(LOAD, res, (Symbol){MEM, root->val - 'x' << 2}, NIL_SYMB);
+		addASM(OP_LOAD, res, (Symbol){SYMB_MEM, root->val - 'x' << 2}, NIL_SYMB);
 		return res;
 	case CONSTANT:
-		return (Symbol){CONST, root->val};
+		return (Symbol){SYMB_CONST, root->val};
 	case MINUS:
 		rhs = genASM(root->mid);
-		if (rhs.type == CONST || regs[rhs.val] == VAR)
+		if (rhs.type == SYMB_CONST || regs[rhs.val] == VAR)
 		{
-			res = (Symbol){REG, getReg()};
+			res = (Symbol){SYMB_REG, getReg()};
 			regs[res.val] = OCCUPIED;
 		}
 		else
@@ -728,13 +730,13 @@ void printASM(ASM a)
 	const static char *OPS[] = {"load", "store", "add", "sub", "mul", "div", "rem"};
 	printf(OPS[a.op_code]);
 	putchar(' ');
-	printSymbol(a.oprands[0]);
+	printSymbol(a.d);
 	putchar(' ');
-	printSymbol(a.oprands[1]);
-	if (a.op_code != LOAD && a.op_code != STORE)
+	printSymbol(a.s1);
+	if (a.op_code != OP_LOAD && a.op_code != OP_STORE)
 	{
 		putchar(' ');
-		printSymbol(a.oprands[2]);
+		printSymbol(a.s2);
 	}
 	putchar('\n');
 }
