@@ -115,11 +115,59 @@ void AST_print(AST *head);
 
 #pragma endregion TEMPL_DEF
 
-#pragma region NEVIKW39_FUNC_DEF
+#pragma region NEVIKW39_DEF
 
-AST *optimizeAST(AST *root);
+AST *optimizeAST(AST *);
 
-#pragma endregion NEVIKW39_FUNC_DEF
+typedef struct _Symbol
+{
+	enum SymbolType
+	{
+		CONST,
+		REG,
+		MEM,
+		NIL
+	} type;
+	int val;
+} Symbol;
+
+void printSymbol(Symbol);
+
+typedef enum _Op
+{
+	LOAD,
+	STORE,
+	OP_ADD,
+	OP_SUB,
+	OP_MUL,
+	OP_DIV,
+	OP_REM
+} Op;
+
+typedef struct _ASM
+{
+	Op op_code;
+	Symbol oprands[3];
+} ASM;
+
+ASM asms[1000001], *asms_end = asms;
+
+void addASM(Op, Symbol, Symbol, Symbol);
+Symbol genASM(AST *);
+void printASM(ASM);
+
+enum RegStatus
+{
+	FREE,
+	OCCUPIED,
+	VAR
+} regs[256];
+
+int getReg();
+
+int vars[3] = {-1, -1, -1}, modified[3] = {0};
+
+#pragma endregion NEVIKW39_DEF
 
 char input[MAX_LENGTH];
 
@@ -141,6 +189,11 @@ int main()
 		free(content);
 		freeAST(ast_root);
 	}
+	for (int i = 0; i < 3; i++)
+		if (modified[i])
+			addASM(STORE, (Symbol){MEM, i << 2}, (Symbol){REG, vars[i]}, (Symbol){NIL});
+	for (ASM *ptr = asms; ptr != asms_end; ptr++)
+		printASM(*ptr);
 	return 0;
 }
 
@@ -318,7 +371,7 @@ AST *parse(Token *arr, int l, int r, GrammarState S)
 		// hint: Take POSTFIX_EXPR as reference.
 		if (arr[l].kind == PREINC || arr[l].kind == PREDEC || arr[l].kind == PLUS || arr[l].kind == MINUS)
 		{
-			now = new_AST(arr[r].kind, 0);
+			now = new_AST(arr[l].kind, 0);
 			now->mid = parse(arr, l + 1, r, UNARY_EXPR);
 			return now;
 		}
@@ -430,6 +483,10 @@ void codegen(AST *root)
 {
 	// TODO: Implement your codegen in your own way.
 	// You may modify the function parameter or the return type, even the whole structure as you wish.
+	genASM(root);
+	for (int i = 1; i <= 256; i++)
+		if (regs[i] == OCCUPIED)
+			regs[i] = FREE;
 }
 
 void freeAST(AST *now)
@@ -557,6 +614,137 @@ AST *optimizeAST(AST *root)
 		free(tmp);
 	}
 	return root;
+}
+
+void printSymbol(Symbol s)
+{
+	if (s.type == NIL)
+		return;
+	const static char *format[] = {"%d", "r%d", "[%d]"};
+	printf(format[s.type], s.val);
+}
+
+void addASM(Op op_code, Symbol a, Symbol b, Symbol c)
+{
+	asms_end->op_code = op_code;
+	asms_end->oprands[0] = a;
+	asms_end->oprands[1] = b;
+	asms_end->oprands[2] = c;
+	++asms_end;
+}
+
+int LOCK = 0;
+
+Symbol genASM(AST *root)
+{
+	static Symbol ZERO = (Symbol){CONST, 0}, ONE = (Symbol){CONST, 1}, NIL_SYMB = (Symbol){NIL};
+	Symbol lhs, rhs, res;
+	if (!root)
+		return NIL_SYMB;
+	switch (root->kind)
+	{
+	case ASSIGN:
+		rhs = genASM(root->rhs);
+		if (rhs.type == CONST || regs[rhs.val] == VAR)
+		{
+			res = (Symbol){REG, getReg()};
+			addASM(OP_ADD, res, ZERO, rhs);
+		}
+		else
+			res = rhs;
+		LOCK = 1;
+		lhs = genASM(root->lhs);
+		LOCK = 0;
+		if (lhs.type != NIL)
+			regs[lhs.val] = FREE;
+		vars[root->lhs->val - 'x'] = res.val;
+		modified[root->lhs->val - 'x'] = 1;
+		regs[res.val] = VAR;
+		return res;
+	case ADD:
+	case SUB:
+	case MUL:
+	case DIV:
+	case REM:
+		lhs = genASM(root->lhs);
+		rhs = genASM(root->rhs);
+		if (lhs.type == REG && regs[lhs.val] != VAR)
+			res = lhs;
+		else if (rhs.type == REG && regs[rhs.val] != VAR)
+			res = rhs;
+		else
+			res = (Symbol){REG, getReg()};
+		addASM(root->kind - ADD + OP_ADD, res, lhs, rhs);
+		if (lhs.type == REG && regs[lhs.val] != VAR)
+			regs[lhs.val] = FREE;
+		if (rhs.type == REG && regs[rhs.val] != VAR)
+			regs[rhs.val] = FREE;
+		regs[res.val] = OCCUPIED;
+		return res;
+	case PREINC:
+	case PREDEC:
+	case POSTINC:
+	case POSTDEC:
+		lhs = genASM(root->mid);
+		if (root->kind == POSTINC || root->kind == POSTDEC)
+		{
+			res = (Symbol){REG, getReg()};
+			regs[res.val] = OCCUPIED;
+			addASM(OP_ADD, res, ZERO, lhs);
+		}
+		else
+			res = lhs;
+		addASM(root->kind == POSTINC || root->kind == PREINC ? OP_ADD : OP_SUB, lhs, lhs, ONE);
+		modified[root->mid->val - 'x'] = 1;
+		return res;
+	case IDENTIFIER:
+		if (~vars[root->val - 'x'])
+			return (Symbol){REG, vars[root->val - 'x']};
+		if (LOCK)
+			return NIL_SYMB;
+		res = (Symbol){REG, getReg()};
+		regs[res.val] = VAR;
+		vars[root->val - 'x'] = res.val;
+		addASM(LOAD, res, (Symbol){MEM, root->val - 'x' << 2}, NIL_SYMB);
+		return res;
+	case CONSTANT:
+		return (Symbol){CONST, root->val};
+	case MINUS:
+		rhs = genASM(root->mid);
+		if (rhs.type == CONST || regs[rhs.val] == VAR)
+		{
+			res = (Symbol){REG, getReg()};
+			regs[res.val] = OCCUPIED;
+		}
+		else
+			res = rhs;
+		addASM(OP_SUB, res, ZERO, rhs);
+		return res;
+	}
+}
+
+void printASM(ASM a)
+{
+	const static char *OPS[] = {"load", "store", "add", "sub", "mul", "div", "rem"};
+	printf(OPS[a.op_code]);
+	putchar(' ');
+	printSymbol(a.oprands[0]);
+	putchar(' ');
+	printSymbol(a.oprands[1]);
+	if (a.op_code != LOAD && a.op_code != STORE)
+	{
+		putchar(' ');
+		printSymbol(a.oprands[2]);
+	}
+	putchar('\n');
+}
+
+int getReg()
+{
+	for (int i = 0; i < 256; i++)
+		if (regs[i] == FREE)
+			return i;
+	return 256;
 }
 
 #pragma endregion NEVIKW39_FUNC_IMPL
