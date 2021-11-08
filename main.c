@@ -7,6 +7,7 @@
   For the language grammar, please refer to Grammar section on the github page:
   https://github.com/lightbulb12294/CSI2P-II-Mini1#grammar
 */
+
 #pragma region TEMPL_DEF
 
 #define MAX_LENGTH 200
@@ -115,6 +116,9 @@ void AST_print(AST *head);
 #pragma endregion TEMPL_DEF
 
 #pragma region NEVIKW39_FUNC_DEF
+
+AST *optimizeAST(AST *root);
+
 #pragma endregion NEVIKW39_FUNC_DEF
 
 char input[MAX_LENGTH];
@@ -129,7 +133,7 @@ int main()
 			continue;
 		if (DEBUG)
 			token_print(content, len);
-		AST *ast_root = parser(content, len);
+		AST *ast_root = optimizeAST(parser(content, len));
 		if (DEBUG)
 			AST_print(ast_root);
 		semantic_check(ast_root);
@@ -536,4 +540,23 @@ void AST_print(AST *head)
 #pragma endregion TEMPL_IMPL
 
 #pragma region NEVIKW39_FUNC_IMPL
+
+AST *optimizeAST(AST *root)
+{
+	if (!root)
+		return NULL;
+	root->lhs = optimizeAST(root->lhs);
+	root->mid = optimizeAST(root->mid);
+	root->rhs = optimizeAST(root->rhs);
+	if (root->kind == PLUS || root->kind == LPAR)
+	{
+		if (!root->mid)
+			err("");
+		AST *tmp = root;
+		root = root->mid;
+		free(tmp);
+	}
+	return root;
+}
+
 #pragma endregion NEVIKW39_FUNC_IMPL
