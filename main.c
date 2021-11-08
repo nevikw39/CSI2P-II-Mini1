@@ -7,6 +7,7 @@
   For the language grammar, please refer to Grammar section on the github page:
   https://github.com/lightbulb12294/CSI2P-II-Mini1#grammar
 */
+#pragma region TEMPL_DEF
 
 #define MAX_LENGTH 200
 
@@ -111,6 +112,11 @@ void token_print(Token *in, size_t len);
 // Print AST tree.
 void AST_print(AST *head);
 
+#pragma endregion TEMPL_DEF
+
+#pragma region NEVIKW39_FUNC_DEF
+#pragma endregion NEVIKW39_FUNC_DEF
+
 char input[MAX_LENGTH];
 
 int main()
@@ -133,6 +139,8 @@ int main()
 	}
 	return 0;
 }
+
+#pragma region TEMPL_IMPL
 
 Token *lexer(const char *in)
 {
@@ -524,3 +532,8 @@ void AST_print(AST *head)
 	indent -= 2;
 	(*indent_now) = '\0';
 }
+
+#pragma endregion TEMPL_IMPL
+
+#pragma region NEVIKW39_FUNC_IMPL
+#pragma endregion NEVIKW39_FUNC_IMPL
