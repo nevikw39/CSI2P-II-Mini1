@@ -467,9 +467,9 @@ void semantic_check(AST *now)
 	// Operand of INC/DEC must be an identifier or identifier with one or more parentheses.
 	// TODO: Implement the remaining semantic_check code.
 	// hint: Follow the instruction above and ASSIGN-part code to implement.
-	if (now->kind == ASSIGN)
+	if (now->kind == PREINC || now->kind == POSTINC || now->kind == PREDEC || now->kind == POSTDEC)
 	{
-		AST *tmp = now->lhs;
+		AST *tmp = now->mid;
 		while (tmp->kind == LPAR)
 			tmp = tmp->mid;
 		if (now->kind == PREINC || now->kind == POSTINC || now->kind == PREDEC || now->kind == POSTDEC)
