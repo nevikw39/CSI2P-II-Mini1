@@ -188,6 +188,9 @@ int main()
 			AST_print(ast_root);
 		semantic_check(ast_root);
 		codegen(ast_root);
+		for (int i = 0; i < 256; i++)
+			if (regs[i] == OCCUPIED)
+				regs[i] = FREE;
 		free(content);
 		freeAST(ast_root);
 	}
@@ -485,10 +488,21 @@ void codegen(AST *root)
 {
 	// TODO: Implement your codegen in your own way.
 	// You may modify the function parameter or the return type, even the whole structure as you wish.
-	genASM(root);
-	for (int i = 1; i <= 256; i++)
-		if (regs[i] == OCCUPIED)
-			regs[i] = FREE;
+	if (!root)
+		return;
+	switch (root->kind)
+	{
+	case ASSIGN:
+	case PREINC:
+	case POSTINC:
+	case PREDEC:
+	case POSTDEC:
+		genASM(root);
+		return;
+	}
+	codegen(root->lhs);
+	codegen(root->mid);
+	codegen(root->rhs);
 }
 
 void freeAST(AST *now)
