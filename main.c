@@ -609,10 +609,14 @@ AST *optimizeAST(AST *root)
 	root->rhs = optimizeAST(root->rhs);
 	if (root->kind == PLUS || root->kind == LPAR)
 	{
-		if (!root->mid)
-			err("");
 		AST *tmp = root;
 		root = root->mid;
+		free(tmp);
+	}
+	if (root->kind == MINUS && root->mid->kind == MINUS)
+	{
+		AST *tmp = root;
+		root = root->mid->mid;
 		free(tmp);
 	}
 	return root;
