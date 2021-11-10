@@ -1,14 +1,27 @@
 #!/bin/zsh
 
-lines="";
-while read line; do
-    lines+=$line'\n';
+input="";
+while read in; do
+    input+=$in'\n';
 done;
-echo $lines | ./main 2> /dev/null | AssemblyCompiler/ASMC;
-cling=$(echo "#include <stdio.h>\nint x = 2, y = 3, z = 5;${lines}printf(\"x, y, z = %d, %d, %d\\\\n\", x, y, z)" | cling 2>&1);
+main=("${(@f)$(echo $input | time ./main 2> /dev/null | AssemblyCompiler/ASMC)}")
+cling=("${(@f)$(echo "#include <stdio.h>\nint x=2, y=3, z=5;${input}printf(\"x, y, z = %d, %d, %d\\\\n\", x, y, z)" | cling -w 2>&1)}");
 if [[ $cling =~ "error" ]]; then
-    echo "Compile Error";
+    echo "\033[0;33mCompile Error\033[m";
+    if [[ $main =~ "CE" ]]; then
+        echo "\033[1;32mAC\033[m";
+        exit;
+    else
+        echo "\033[1;31mWA\033[m";
+        exit 1;
+    fi
 else
-    lines=("${(@f)cling}");
-    echo $lines[6];
+    if [[ $main[1] == $cling[6] ]]; then
+        echo "\033[0;37m${main[2]}\033[m";
+        echo "\033[1;32mAC\033[m";
+        exit;
+    else
+        echo "\033[1;31mWA\033[m";
+        exit 1;
+    fi
 fi
