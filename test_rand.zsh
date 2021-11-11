@@ -5,7 +5,7 @@ ub=0;
 function onINT()
 {
     echo "\n\033[0;37m$cnt($ub)\033[m";
-     exit;
+    exit;
 }
 trap onINT INT
 while True; do
