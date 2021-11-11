@@ -117,6 +117,7 @@ void AST_print(AST *head);
 
 #pragma region NEVIKW39_DEF
 
+// basic optimize
 AST *optimizeAST(AST *);
 
 typedef struct _Symbol // the operand of an ASM
@@ -131,6 +132,7 @@ typedef struct _Symbol // the operand of an ASM
 	int val;
 } Symbol;
 
+// print the symbol
 void printSymbol(Symbol);
 
 typedef enum _Op // the type of an ASM
@@ -154,9 +156,12 @@ typedef struct _ASM
 ASM asms[1000001],	  // the ASM queue
 	*asms_end = asms; // the open-interval end of the ASM queue
 
-void addASM(Op, Symbol, Symbol, Symbol); // add an ASM to the ASM queue
-Symbol genASM(AST *);					 // generate ASMs from AST
-void printASM(ASM);						 // print the ASM queue
+// add an ASM to the ASM queue
+void addASM(Op, Symbol, Symbol, Symbol);
+// generate ASMs from AST
+Symbol genASM(AST *);
+// print the ASM queue
+void printASM(ASM);
 
 enum Reg // the status of the registers
 {
@@ -165,13 +170,15 @@ enum Reg // the status of the registers
 	VAR
 } regs[256];
 
+// get a free register
 int getReg();
 
 int vars[3] = {-1, -1, -1}, // the register in which the variable stored
 	modified[3] = {0};		// whether the variable modified
 
+// optimize ASMs
 void optimize();
-
+// perform dead code elimination
 void dead_code_eliminate(ASM *, int);
 
 #pragma endregion NEVIKW39_DEF
