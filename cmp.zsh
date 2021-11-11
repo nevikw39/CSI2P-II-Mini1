@@ -17,7 +17,7 @@ elif [[ $cling =~ "error" ]]; then
         exit 1;
     fi
 else
-    if [[ $main[1] == $cling[6] ]]; then
+    if [[ $optimized[1] == $cling[6] ]]; then
         echo "\033[1;32mAC\033[m\n\033[0;37m${optimized[2]}\033[m";
     else
         echo "\033[1;31mWA\033[m\n${optimized[1]}\n${cling[6]}";
