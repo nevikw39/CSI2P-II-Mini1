@@ -2,13 +2,16 @@
 
 import random
 
-ops = ['=', '+', '-', '*', '/', '%', "++", "--", "PLUS", "MINUS", '('] + ["VAR", "CONST"] * 69
+ops = ['=', '+', '-', '*', '/', '%', "++", "--",
+       "PLUS", "MINUS", '('] + ["VAR", "CONST"] * 69
 ops_lvalue = ['(', "VAR"]
+
 
 def get_var(root: list) -> str:
     if root[0] != '(':
         return root[1]
     return get_var(root[3])
+
 
 def rand(ops_cur: list, vars: list) -> list:
     root = [random.choice(ops_cur), 0, [], []]
@@ -41,6 +44,7 @@ def rand(ops_cur: list, vars: list) -> list:
         root[1] = random.randrange(100)
     return root
 
+
 def to_str(root: list) -> str:
     if not root:
         return ""
@@ -53,6 +57,7 @@ def to_str(root: list) -> str:
     if root[0] == '(':
         return '(' + to_str(root[3]) + ')'
     return to_str(root[2]) + root[0] + to_str(root[3])
+
 
 for i in range(200):
     print(to_str(rand(ops + ['='] * 87, ['x', 'y', 'z'])) + ';')
