@@ -148,6 +148,7 @@ typedef struct _ASM
 {
 	Op op_code;
 	Symbol d, s1, s2;
+	int dead;
 } ASM;
 
 ASM asms[1000001],	  // the ASM queue
@@ -168,6 +169,10 @@ int getReg();
 
 int vars[3] = {-1, -1, -1}, // the register in which the variable stored
 	modified[3] = {0};		// whether the variable modified
+
+void optimize();
+
+void dead_code_eliminate(ASM *, int);
 
 #pragma endregion NEVIKW39_DEF
 
@@ -194,11 +199,13 @@ int main()
 		free(content);
 		freeAST(ast_root);
 	}
+	optimize();
 	for (int i = 0; i < 3; i++)
 		if (modified[i])
 			addASM(OP_STORE, (Symbol){SYMB_MEM, i << 2}, (Symbol){SYMB_REG, vars[i]}, (Symbol){SYMB_NIL, 0});
 	for (ASM *ptr = asms; ptr != asms_end; ptr++)
-		printASM(*ptr);
+		if (!ptr->dead || ptr->op_code == OP_STORE)
+			printASM(*ptr);
 	return 0;
 }
 
@@ -650,6 +657,7 @@ void addASM(Op op_code, Symbol d, Symbol s1, Symbol s2)
 	asms_end->d = d;
 	asms_end->s1 = s1;
 	asms_end->s2 = s2;
+	asms_end->dead = 1;
 	++asms_end;
 }
 
@@ -765,6 +773,26 @@ int getReg()
 		if (regs[i] == FREE)
 			return i;
 	return 256;
+}
+
+void optimize()
+{
+	for (int i = 0; i < 3; i++)
+		if (modified[i])
+			dead_code_eliminate(asms_end - 1, vars[i]);
+}
+
+void dead_code_eliminate(ASM *ptr, int r)
+{
+	while (ptr >= asms && ptr->d.val != r)
+		--ptr;
+	if (ptr < asms)
+		return;
+	ptr->dead = 0;
+	if (ptr->s1.type == SYMB_REG)
+		dead_code_eliminate(ptr - 1, ptr->s1.val);
+	if (ptr->s2.type == SYMB_REG)
+		dead_code_eliminate(ptr - 1, ptr->s2.val);
 }
 
 #pragma endregion NEVIKW39_FUNC_IMPL
