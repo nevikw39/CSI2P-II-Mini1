@@ -6,6 +6,10 @@ while read in; do
 done;
 optimized=("${(@f)$(echo $input | time ./optimized 2> /dev/null | AssemblyCompiler/ASMC)}")
 cling=("${(@f)$(echo "#include <stdio.h>\nint x=2, y=3, z=5;${input}printf(\"x, y, z = %d, %d, %d\\\\n\", x, y, z)" | cling 2>&1)}");
+if [[ $? == 136 ]]; then
+    echo "\033[0;33mfloating point exception\033[m";
+    exit -1;
+fi
 if [[ $cling =~ "warning" ]]; then
     echo "\033[0;33m${cling[6]}\033[m";
     exit -1;
