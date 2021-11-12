@@ -117,6 +117,14 @@ void AST_print(AST *head);
 
 #pragma region NEVIKW39_DEF
 
+// return whether an AST is a constant
+int isConstAST(AST *);
+// return the value of an constant AST
+int getConstAST(AST *);
+// return a new constant AST
+AST *newConstAST(int);
+// determine whether an AST is not needeed
+int notNeeded(AST *);
 // basic optimize
 AST *optimizeAST(AST *);
 
@@ -628,6 +636,43 @@ void AST_print(AST *head)
 
 #pragma region NEVIKW39_FUNC_IMPL
 
+int isConstAST(AST *root)
+{
+	return root && (root->kind == CONSTANT || root->kind == MINUS && root->mid->kind == CONSTANT);
+}
+
+int getConstAST(AST *root)
+{
+	if (root->kind == CONSTANT)
+		return root->val;
+	return -root->mid->val;
+}
+
+AST *newConstAST(int val)
+{
+	if (val >= 0)
+		return new_AST(CONSTANT, val);
+	AST *root = new_AST(MINUS, 0); 
+	root->mid = new_AST(CONSTANT, -val);
+	return root;
+}
+
+int notNeeded(AST *root)
+{
+	if (!root)
+	return 1;
+	switch (root->kind)
+	{
+	case ASSIGN:
+	case PREINC:
+	case POSTINC:
+	case PREDEC:
+	case POSTDEC:
+		return 0;
+	}
+	return notNeeded(root->lhs) && notNeeded(root->mid) && notNeeded(root->rhs);
+}
+
 AST *optimizeAST(AST *root)
 {
 	if (!root)
@@ -641,11 +686,66 @@ AST *optimizeAST(AST *root)
 		root = root->mid;
 		free(tmp);
 	}
-	if (root->kind == MINUS && root->mid->kind == MINUS)
+	else if (root->kind == MINUS && root->mid->kind == MINUS)
 	{
 		AST *tmp = root;
 		root = root->mid->mid;
 		free(tmp);
+	}
+	else if (root->lhs && root->rhs && (root->lhs->kind == IDENTIFIER && root->rhs->kind == IDENTIFIER && root->lhs->val == root->rhs->val && (root->kind == SUB || root->kind == REM) || notNeeded(root) && (isConstAST(root->lhs) && !getConstAST(root->lhs) && condMUL(root->kind) || isConstAST(root->rhs) && (!getConstAST(root->rhs) && root->kind == MUL || getConstAST(root->rhs) == 1 && root->kind == REM))))
+	{
+		AST *tmp = root;
+		root = newConstAST(0);
+		free(tmp);
+	}
+	else if (root->kind == DIV && root->lhs->kind == IDENTIFIER && root->rhs == IDENTIFIER && root->lhs->val == root->rhs->val)
+	{
+		AST *tmp = root;
+		root = newConstAST(1);
+		free(tmp);
+	}
+	else if (isConstAST(root->lhs))
+	{
+		if (isConstAST(root->rhs))
+		{
+			AST *tmp = root;
+			switch (tmp->kind)
+			{
+			case ADD:
+				root = newConstAST(getConstAST(tmp->lhs) + getConstAST(tmp->rhs));
+				break;
+			case SUB:
+				root = newConstAST(getConstAST(tmp->lhs) - getConstAST(tmp->rhs));
+				break;
+			case MUL:
+				root = newConstAST(getConstAST(tmp->lhs) * getConstAST(tmp->rhs));
+				break;
+			case DIV:
+				root = newConstAST(getConstAST(tmp->lhs) / getConstAST(tmp->rhs));
+				break;
+			case REM:
+				root = newConstAST(getConstAST(tmp->lhs) % getConstAST(tmp->rhs));
+			}
+			freeAST(tmp);
+		}
+		else if (!getConstAST(root->lhs))
+		{
+			if (root->kind == ADD || root->kind == MUL)
+			{
+				AST *tmp = root;
+				root = root->rhs;
+				freeAST(tmp->lhs);
+				free(tmp);
+			}
+			else if (root->kind == SUB)
+			{
+				AST *tmp = root;
+				root = new_AST(MINUS, 0);
+				root->mid = tmp->rhs;
+				freeAST(tmp->lhs);
+				free(tmp);
+			}
+		}
 	}
 	return root;
 }
