@@ -23,7 +23,9 @@ def cal(root: list) -> int:
     elif root[0] == '/':
         return int(cal(root[2]) / cal(root[3]))
     elif root[0] == '%':
-        return cal(root[2]) % cal(root[3])
+        a = cal(root[2])
+        b = cal(root[3])
+        return abs(a) % abs(b) * (1 - 2 * (a < 0))
     else:
         raise Exception()
 
@@ -39,14 +41,18 @@ def rand(ops_cur: list, vars: list, vars_lvalue: list, d=1, lvalue=False) -> lis
     if root[0] == '=':
         root = ['(', 0, [], ['=', 0, [], []]]
         root[3][2] = rand(ops_lvalue, vars, vars_lvalue, d + 1, True)
-        root[3][3] = rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)
+        root[3][3] = rand(ops * (69 // d ** 3) + ops_term *
+                          d, vars, vars_lvalue, d + 1)
     elif root[0] in "+-*/%":
-        root[2] = rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)
-        root[3] = rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)
+        root[2] = rand(ops * (69 // d ** 3) + ops_term *
+                       d, vars, vars_lvalue, d + 1)
+        root[3] = rand(ops * (69 // d ** 3) + ops_term *
+                       d, vars, vars_lvalue, d + 1)
         if root[0] in "/%":
             try:
                 while not cal(root[3]):
-                    root[3] = rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)
+                    root[3] = rand(ops * (69 // d ** 3) +
+                                   ops_term * d, vars, vars_lvalue, d + 1)
             except:
                 pass
     elif root[0] in "++--":
@@ -55,7 +61,8 @@ def rand(ops_cur: list, vars: list, vars_lvalue: list, d=1, lvalue=False) -> lis
         root[3][i] = rand(ops_lvalue, vars, vars_lvalue, d + 1, True)
     elif root[0] in "PLUS MINUS":
         root = ['(', 0, [], [root[0], 0, [], []]]
-        root[3][3] = ['(', 0, [], rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)]
+        root[3][3] = ['(', 0, [], rand(ops * (69 // d ** 3) +
+                                       ops_term * d, vars, vars_lvalue, d + 1)]
     elif root[0] == '(':
         root[3] = rand(ops_cur, vars, vars_lvalue, d + 1, lvalue)
     elif root[0] == 'VAR':
@@ -85,4 +92,6 @@ def to_str(root: list) -> str:
 
 
 for i in range(20):
-    print(to_str(rand(ops + ['='] * 87, ['x', 'y', 'z'], ['x', 'y', 'z'])) + ';')
+    print(
+        to_str(rand(ops + ['='] * 87, ['x', 'y', 'z'], ['x', 'y', 'z'])) + ';')
+print()
