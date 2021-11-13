@@ -652,7 +652,7 @@ AST *newConstAST(int val)
 {
 	if (val >= 0)
 		return new_AST(CONSTANT, val);
-	AST *root = new_AST(MINUS, 0); 
+	AST *root = new_AST(MINUS, 0);
 	root->mid = new_AST(CONSTANT, -val);
 	return root;
 }
@@ -660,7 +660,7 @@ AST *newConstAST(int val)
 int notNeeded(AST *root)
 {
 	if (!root)
-	return 1;
+		return 1;
 	switch (root->kind)
 	{
 	case ASSIGN:
@@ -696,13 +696,13 @@ AST *optimizeAST(AST *root)
 	{
 		AST *tmp = root;
 		root = newConstAST(0);
-		free(tmp);
+		freeAST(tmp);
 	}
-	else if (root->kind == DIV && root->lhs->kind == IDENTIFIER && root->rhs == IDENTIFIER && root->lhs->val == root->rhs->val)
+	else if (root->kind == DIV && root->lhs->kind == IDENTIFIER && root->rhs->kind == IDENTIFIER && root->lhs->val == root->rhs->val)
 	{
 		AST *tmp = root;
 		root = newConstAST(1);
-		free(tmp);
+		freeAST(tmp);
 	}
 	else if (isConstAST(root->lhs))
 	{
@@ -728,23 +728,38 @@ AST *optimizeAST(AST *root)
 			}
 			freeAST(tmp);
 		}
-		else if (!getConstAST(root->lhs))
+		else if (root->kind == ADD && !getConstAST(root->lhs) || root->kind == MUL && getConstAST(root->lhs) == 1)
 		{
-			if (root->kind == ADD || root->kind == MUL)
-			{
-				AST *tmp = root;
-				root = root->rhs;
-				freeAST(tmp->lhs);
-				free(tmp);
-			}
-			else if (root->kind == SUB)
-			{
-				AST *tmp = root;
-				root = new_AST(MINUS, 0);
-				root->mid = tmp->rhs;
-				freeAST(tmp->lhs);
-				free(tmp);
-			}
+			AST *tmp = root;
+			root = root->rhs;
+			freeAST(tmp->lhs);
+			free(tmp);
+		}
+		else if (root->kind == SUB && !getConstAST(root->lhs) || root->kind == MUL && !~getConstAST(root->lhs))
+		{
+			AST *tmp = root;
+			root = new_AST(MINUS, 0);
+			root->mid = tmp->rhs;
+			freeAST(tmp->lhs);
+			free(tmp);
+		}
+	}
+	else if (isConstAST(root->rhs))
+	{
+		if (condADD(root->kind) && !getConstAST(root->rhs) || root->kind == MUL && getConstAST(root->rhs) == 1)
+		{
+			AST *tmp = root;
+			root = root->lhs;
+			freeAST(tmp->rhs);
+			free(tmp);
+		}
+		else if (root->kind == MUL && !~getConstAST(root->rhs))
+		{
+			AST *tmp = root;
+			root = new_AST(MINUS, 0);
+			root->mid = tmp->lhs;
+			freeAST(tmp->rhs);
+			free(tmp);
 		}
 	}
 	return root;
