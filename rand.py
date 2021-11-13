@@ -21,7 +21,7 @@ def cal(root: list) -> int:
     elif root[0] == '*':
         return cal(root[2]) * cal(root[3])
     elif root[0] == '/':
-        return cal(root[2]) // cal(root[3])
+        return int(cal(root[2]) / cal(root[3]))
     elif root[0] == '%':
         return cal(root[2]) % cal(root[3])
     else:
@@ -45,7 +45,7 @@ def rand(ops_cur: list, vars: list, vars_lvalue: list, d=1, lvalue=False) -> lis
         root[3] = rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)
         if root[0] in "/%":
             try:
-                while not cal(root[3]) and not eval(to_str(root[3]).replace('/', "//")):
+                while not cal(root[3]):
                     root[3] = rand(ops * (69 // d ** 3) + ops_term * d, vars, vars_lvalue, d + 1)
             except:
                 pass
