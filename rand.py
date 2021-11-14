@@ -30,7 +30,7 @@ def cal(root: list) -> int:
         raise Exception()
 
 
-def rand(ops_cur: list, vars: list, vars_lvalue: list, d=1, lvalue=False) -> list:
+def rand(ops_cur: list, vars=['x', 'y', 'z'], vars_lvalue=['x', 'y', 'z'], d=1, lvalue=False) -> list:
     root = [random.choice(ops_cur), 0, [], []]
     if not vars_lvalue:
         while root[0] in "=++-- VAR":
@@ -41,7 +41,7 @@ def rand(ops_cur: list, vars: list, vars_lvalue: list, d=1, lvalue=False) -> lis
     if root[0] == '=':
         root = ['(', 0, [], ['=', 0, [], []]]
         root[3][2] = rand(ops_lvalue, vars, vars_lvalue, d + 1, True)
-        root[3][3] = rand(ops * (69 // d ** 3) + ops_term *
+        root[3][3] = rand(ops * (69 // d ** 2) + ops_term *
                           d, vars, vars_lvalue, d + 1)
     elif root[0] in "+-*/%":
         root[2] = rand(ops * (69 // d ** 3) + ops_term *
@@ -91,7 +91,6 @@ def to_str(root: list) -> str:
     return to_str(root[2]) + root[0] + to_str(root[3])
 
 
-for i in range(20):
-    print(
-        to_str(rand(ops + ['='] * 87, ['x', 'y', 'z'], ['x', 'y', 'z'])) + ';')
+for i in range(15):
+    print(to_str(rand(ops + ['='] * 87)) + ';')
 print()

@@ -161,8 +161,8 @@ typedef struct _ASM
 	int dead;
 } ASM;
 
-ASM asms[1000001],	  // the ASM queue
-	*asms_end = asms; // the open-interval end of the ASM queue
+ASM asms[MAX_LENGTH * 15 << 3], // the ASM queue
+	*asms_end = asms;	   // the open-interval end of the ASM queue
 
 // add an ASM to the ASM queue
 void addASM(Op, Symbol, Symbol, Symbol);
@@ -456,25 +456,13 @@ int findNextSection(Token *arr, int start, int end, int (*cond)(Kind))
 	return -1;
 }
 
-int condASSIGN(Kind kind)
-{
-	return kind == ASSIGN;
-}
+int condASSIGN(Kind kind) { return kind == ASSIGN; }
 
-int condADD(Kind kind)
-{
-	return kind == ADD || kind == SUB;
-}
+int condADD(Kind kind) { return kind == ADD || kind == SUB; }
 
-int condMUL(Kind kind)
-{
-	return kind == MUL || kind == DIV || kind == REM;
-}
+int condMUL(Kind kind) { return kind == MUL || kind == DIV || kind == REM; }
 
-int condRPAR(Kind kind)
-{
-	return kind == RPAR;
-}
+int condRPAR(Kind kind) { return kind == RPAR; }
 
 void semantic_check(AST *now)
 {
