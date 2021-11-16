@@ -2,6 +2,10 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#pragma GCC optimize("Ofast,unroll-loops,no-stack-protector,fast-math")
+#pragma GCC target("tune=native")
 
 /*
   For the language grammar, please refer to Grammar section on the github page:
@@ -158,11 +162,11 @@ typedef struct _ASM
 {
 	Op op_code;
 	Symbol d, s1, s2;
-	int dead;
+	int dead, status, val;
 } ASM;
 
 ASM asms[MAX_LENGTH * 15 << 3], // the ASM queue
-	*asms_end = asms;	   // the open-interval end of the ASM queue
+	*asms_end = asms;			// the open-interval end of the ASM queue
 
 // add an ASM to the ASM queue
 void addASM(Op, Symbol, Symbol, Symbol);
@@ -170,6 +174,8 @@ void addASM(Op, Symbol, Symbol, Symbol);
 Symbol genASM(AST *);
 // print the ASM queue
 void printASM(ASM);
+// execute ASM in compile time to determine constant
+void execASM(int arr[3]);
 
 enum Reg // the status of the registers
 {
@@ -184,7 +190,7 @@ int getReg();
 int vars[3] = {-1, -1, -1}, // the register in which the variable stored
 	modified[3] = {0};		// whether the variable modified
 
-// optimize ASMs
+// optimize by excuting ASMs in Compile Time
 void optimize();
 // perform dead code elimination
 void dead_code_eliminate(ASM *, int);
@@ -768,6 +774,7 @@ void addASM(Op op_code, Symbol d, Symbol s1, Symbol s2)
 	asms_end->s1 = s1;
 	asms_end->s2 = s2;
 	asms_end->dead = 1;
+	asms_end->status = -1;
 	++asms_end;
 }
 
@@ -877,6 +884,68 @@ void printASM(ASM a)
 	putchar('\n');
 }
 
+void execASM(int vars[3])
+{
+	int regs[256];
+	memset(regs, 0, sizeof(regs));
+	for (ASM *ptr = asms; ptr != asms_end; ptr++)
+	{
+		int lhs, rhs, res;
+		switch (ptr->s1.type)
+		{
+		case SYMB_CONST:
+			lhs = ptr->s1.val;
+			break;
+		case SYMB_REG:
+			lhs = regs[ptr->s1.val];
+			break;
+		case SYMB_MEM:
+			lhs = vars[ptr->s1.val >> 2];
+			break;
+		}
+		switch (ptr->s2.type)
+		{
+		case SYMB_CONST:
+			rhs = ptr->s2.val;
+			break;
+		case SYMB_REG:
+			rhs = regs[ptr->s2.val];
+			break;
+		case SYMB_MEM:
+			rhs = vars[ptr->s2.val >> 2];
+			break;
+		}
+		switch (ptr->op_code)
+		{
+		case OP_LOAD:
+			res = lhs;
+			break;
+		case OP_ADD:
+			res = lhs + rhs;
+			break;
+		case OP_SUB:
+			res = lhs - rhs;
+			break;
+		case OP_MUL:
+			res = lhs * rhs;
+			break;
+		case OP_DIV:
+			res = lhs / rhs;
+			break;
+		case OP_REM:
+			res = lhs % rhs;
+		}
+		regs[ptr->d.val] = res;
+		if (!~ptr->status)
+		{
+			ptr->val = res;
+			ptr->status = 1;
+		}
+		else if (ptr->val != res)
+			ptr->status = 0;
+	}
+}
+
 int getReg()
 {
 	for (int i = 0; i < 256; i++)
@@ -887,6 +956,30 @@ int getReg()
 
 void optimize()
 {
+	srand(time(NULL));
+	for (int x = -100; x <= 100; x += 1 + rand() % 3)
+		for (int y = -100; y <= 100; y += 1 + rand() % 3)
+			for (int z = -100; z <= 100; z += 1 + rand() % 3)
+			{
+				int vars[] = {x, y, z};
+				execASM(vars);
+			}
+	for (ASM *ptr = asms; ptr != asms_end; ptr++)
+		if (ptr->status)
+		{
+			if (ptr->val >= 0)
+			{
+				ptr->op_code = OP_ADD;
+				ptr->s1 = (Symbol){.type = SYMB_CONST, .val = 0};
+				ptr->s2 = (Symbol){.type = SYMB_CONST, .val = ptr->val};
+			}
+			else
+			{
+				ptr->op_code = OP_SUB;
+				ptr->s1 = (Symbol){.type = SYMB_CONST, .val = 0};
+				ptr->s2 = (Symbol){.type = SYMB_CONST, .val = -ptr->val};
+			}
+		}
 	for (int i = 0; i < 3; i++)
 		if (modified[i])
 			dead_code_eliminate(asms_end - 1, vars[i]);
