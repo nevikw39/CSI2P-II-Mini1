@@ -2,19 +2,21 @@
 
 cnt=0;
 ub=0;
+
 function onINT()
 {
     echo "\n\033[0;37m$cnt($ub)\033[m";
     exit;
 }
+
 trap onINT INT
 while True; do
     echo -n '.'; 
     input=$(./rand.py);
-    echo $input | ./cmp.zsh > /dev/null 2> /dev/null;
+    echo $input | ./cmp.zsh $1 > /dev/null 2> /dev/null;
     case $? in
     1)
-        echo "\n$input";
+        echo "\n$input\n\033[0;37m$cnt($ub)\033[m";
         exit 1;
         ;;
     255)
